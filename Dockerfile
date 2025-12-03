@@ -9,7 +9,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev
 
 # Truco de caché: Copiar solo manifiestos primero para cachear dependencias
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 
 # Crear un main dummy para compilar solo las dependencias
 RUN mkdir src && echo "fn main() {}" > src/main.rs
