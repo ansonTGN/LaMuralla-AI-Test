@@ -145,8 +145,75 @@ impl KGRepository for Neo4jRepo {
         
         Ok(results)
     }
+    
+    // --- IMPLEMENTACIÓN: VECINDARIO DE CONCEPTO (Deep Dive) ---
 
-    // --- IMPLEMENTACIÓN: RAZONAMIENTO ---
+    async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphDataResponse, AppError> {
+        // Busca el nodo central y todas las relaciones (entrantes o salientes) directas
+        let q = query(
+            "MATCH (center:Entity {name: $name})-[r]-(neighbor:Entity)
+             RETURN center.name, center.category, type(r) as rel, startNode(r) = center as is_source, neighbor.name, neighbor.category
+             LIMIT 100"
+        ).param("name", concept_name);
+
+        let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        let mut nodes_vec = Vec::new();
+        let mut edges_vec = Vec::new();
+        let mut unique_nodes = HashSet::new();
+
+        let mut relations_found = false;
+
+        while let Ok(Some(row)) = stream.next().await {
+            relations_found = true;
+            
+            let c_name: String = row.get("center.name").unwrap_or_default();
+            let c_cat: String = row.get("center.category").unwrap_or_else(|_| "Concept".to_string());
+            let rel_type: String = row.get("rel").unwrap_or_default();
+            let is_source: bool = row.get("is_source").unwrap_or(true);
+            let n_name: String = row.get("neighbor.name").unwrap_or_default();
+            let n_cat: String = row.get("neighbor.category").unwrap_or_else(|_| "Concept".to_string());
+
+            // Añadir/Actualizar nodo central
+            if unique_nodes.insert(c_name.clone()) {
+                 nodes_vec.push(VisNode { id: c_name.clone(), label: c_name.clone(), group: c_cat });
+            }
+
+            // Añadir nodo vecino
+            if unique_nodes.insert(n_name.clone()) {
+                nodes_vec.push(VisNode { id: n_name.clone(), label: n_name.clone(), group: n_cat });
+            }
+
+            // Definir dirección
+            let (from, to) = if is_source {
+                (c_name.clone(), n_name.clone())
+            } else {
+                (n_name.clone(), c_name.clone())
+            };
+
+            edges_vec.push(VisEdge { from, to, label: rel_type });
+        }
+        
+        // Fallback: Si no hay relaciones, al menos devolvemos el nodo central
+        if !relations_found {
+             let q_fallback = query("MATCH (center:Entity {name: $name}) RETURN center.name, center.category")
+                .param("name", concept_name);
+             let mut stream_fallback = self.graph.execute(q_fallback).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+             if let Ok(Some(row)) = stream_fallback.next().await {
+                let name: String = row.get("center.name").unwrap_or_default();
+                let cat: String = row.get("center.category").unwrap_or_else(|_| "Concept".to_string());
+                nodes_vec.push(VisNode { id: name.clone(), label: name, group: cat });
+             }
+        }
+
+        // Limpiar duplicados de nodos (si se insertó dos veces en el loop principal o fallback)
+        nodes_vec.sort_by(|a, b| a.id.cmp(&b.id));
+        nodes_vec.dedup_by(|a, b| a.id == b.id);
+
+        Ok(GraphDataResponse { nodes: nodes_vec, edges: edges_vec })
+    }
+    
+    // --- MÉTODOS DE RAZONAMIENTO (EXISTENTES) ---
 
     async fn get_graph_context_for_reasoning(&self, limit: usize) -> Result<String, AppError> {
         // Obtenemos las relaciones más "densas" para dar contexto

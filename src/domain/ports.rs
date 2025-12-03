@@ -12,8 +12,11 @@ pub trait KGRepository: Send + Sync {
     
     async fn get_full_graph(&self) -> Result<GraphDataResponse, AppError>;
     async fn find_hybrid_context(&self, embedding: Vec<f32>, limit: usize) -> Result<Vec<HybridContext>, AppError>;
+    
+    // --- MÉTODO NUEVO DE VECINDARIO ---
+    async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphDataResponse, AppError>;
 
-    // --- NUEVO: Métodos para razonamiento ---
+    // --- Métodos para razonamiento ---
     async fn get_graph_context_for_reasoning(&self, limit: usize) -> Result<String, AppError>;
     async fn save_inferred_relations(&self, relations: Vec<InferredRelation>) -> Result<(), AppError>;
 }
@@ -25,6 +28,6 @@ pub trait AIService: Send + Sync {
     fn update_config(&mut self, config: AIConfig) -> Result<(), AppError>;
     fn get_config(&self) -> AIConfig;
 
-    // --- NUEVO: Método para inferencia ---
+    // --- Método para inferencia ---
     async fn generate_inference(&self, prompt: &str) -> Result<InferenceResult, AppError>;
 }

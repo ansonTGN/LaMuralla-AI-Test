@@ -3,28 +3,46 @@
 {% block content %}
 <style>
     /* --- Estilos Chat RAG --- */
-    .concept-link {
-        color: #2c3e50;
-        background-color: rgba(59, 130, 246, 0.15);
-        border-bottom: 2px solid #3b82f6;
+    
+    /* Píldoras de Concepto (NUEVO DISEÑO) */
+    .concept-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        border-radius: 9999px; /* Pill shape */
+        padding: 2px 10px 2px 8px;
+        font-size: 0.85rem;
         font-weight: 600;
         cursor: pointer;
-        padding: 0 4px;
-        border-radius: 4px;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none !important;
+        margin: 0 2px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        user-select: none;
+        white-space: nowrap;
     }
-    .concept-link:hover {
-        background-color: #3b82f6;
+
+    .concept-pill:hover {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white;
-        text-decoration: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-color: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
     }
+    
+    .concept-pill i { font-size: 0.75em; opacity: 0.8; }
+
+    /* Referencias bibliográficas */
     .ref-link {
-        font-size: 0.75em;
+        font-size: 0.7em;
         color: #64748b;
         vertical-align: super;
         margin-left: 2px;
         font-family: 'Roboto Mono', monospace;
+        cursor: help;
     }
     
     /* --- Estilos UI Generales --- */
@@ -41,6 +59,19 @@
     .nav-tabs .nav-link { color: #64748b; border: none; border-bottom: 2px solid transparent; }
     .nav-tabs .nav-link.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; background: transparent; }
     .nav-tabs .nav-link:hover { border-color: transparent; color: #3b82f6; }
+
+    /* Estilos del Modal de Grafo (Deep Dive) */
+    #conceptNetwork {
+        width: 100%;
+        height: 60vh; /* Altura adaptable */
+        background: #0f172a; /* Fondo oscuro pro */
+        border-radius: 0 0 8px 8px;
+    }
+    
+    @media (max-width: 768px) {
+        #conceptNetwork { height: 50vh; }
+        .concept-pill { font-size: 0.75rem; padding: 2px 8px; }
+    }
 </style>
 
 <!-- NAVBAR -->
@@ -53,6 +84,7 @@
         <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
             <i class="fa-solid fa-circle fa-xs me-2"></i>SISTEMA ONLINE
         </span>
+        <a href="/logout" class="btn btn-sm btn-outline-secondary text-white border-0"><i class="fa-solid fa-right-from-bracket"></i></a>
     </div>
 </nav>
 
@@ -119,7 +151,7 @@
                 <div id="progressLog" class="small font-monospace text-muted p-2 bg-white border rounded shadow-sm" style="max-height: 120px; overflow-y: auto; font-size: 0.75rem;"></div>
             </div>
 
-            <!-- SECCIÓN 2: RAZONAMIENTO (NUEVO) -->
+            <!-- SECCIÓN 2: RAZONAMIENTO -->
             <hr class="my-4">
             <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-brain me-2"></i>Razonamiento</h5>
             <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
@@ -147,7 +179,7 @@
             </div>
         </div>
 
-        <!-- MAIN: GRAFO -->
+        <!-- MAIN: GRAFO GLOBAL -->
         <div class="col-md-8 col-lg-9 main-content">
             <div id="network-container"></div>
             
@@ -210,12 +242,64 @@
     </div>
 </div>
 
+<!-- MODAL DE INSPECCIÓN DE CONCEPTO (Deep Dive) -->
+<div class="modal fade" id="conceptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-2xl overflow-hidden">
+            <!-- Header con gradiente -->
+            <div class="modal-header py-3" style="background: linear-gradient(to right, #1e293b, #0f172a); border-bottom: 1px solid #334155;">
+                <div class="d-flex align-items-center gap-3 text-white">
+                    <div class="bg-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="fa-solid fa-project-diagram"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="conceptModalTitle">Cargando...</h5>
+                        <small class="text-secondary" style="font-size: 0.75rem;">RELACIONES ESTRUCTURALES</small>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-white" type="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-download me-1"></i> Exportar
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><a class="dropdown-item small" href="#" onclick="exportSubGraph('json')"><i class="fa-solid fa-code me-2"></i>JSON</a></li>
+                            <li><a class="dropdown-item small" href="#" onclick="exportSubGraph('csv')"><i class="fa-solid fa-table me-2"></i>CSV (Nodos)</a></li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            
+            <!-- Cuerpo Visual -->
+            <div class="modal-body p-0 bg-dark position-relative">
+                <div id="conceptNetwork"></div>
+                
+                <!-- Loading Overlay interno -->
+                <div id="conceptLoading" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center bg-dark bg-opacity-75" style="z-index: 10;">
+                    <div class="spinner-border text-info mb-2" role="status"></div>
+                    <span class="text-white small tracking-wider">MAPEANDO CONEXIONES...</span>
+                </div>
+
+                <!-- Floating Controls -->
+                <div class="position-absolute bottom-0 start-0 m-3 p-2 bg-black bg-opacity-50 rounded text-white small font-monospace">
+                    <i class="fa-solid fa-circle text-warning me-1"></i> Central
+                    <i class="fa-solid fa-circle text-primary ms-2 me-1"></i> Relacionado
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    let network;
-    
+    // --- VARIABLES GLOBALES ---
+    let network; // Grafo principal
+    let conceptNetworkInstance = null; // Sub-grafo modal
+    let currentSubGraphData = null; // Datos para exportación
+
     // Carga inicial
     document.addEventListener('DOMContentLoaded', () => { loadGraph(); });
 
@@ -230,7 +314,6 @@
         const formData = new FormData();
         let hasData = false;
         
-        // Verificar pestaña activa
         const isTextActive = document.getElementById('tab-btn-text').classList.contains('active');
 
         if (isTextActive) {
@@ -247,20 +330,14 @@
 
         if(!hasData) return alert("Por favor, selecciona un archivo o escribe un texto válido.");
 
-        // UI Reset
         btn.disabled = true;
         progressArea.classList.remove('d-none');
         logDiv.innerHTML = '<div class="text-primary"><i class="fa-solid fa-satellite-dish me-2"></i>Conectando con el motor...</div>';
         
         try {
-            const response = await fetch('/api/ingest', {
-                method: 'POST',
-                body: formData
-            });
-
+            const response = await fetch('/api/ingest', { method: 'POST', body: formData });
             if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
-            // Leer Stream
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
 
@@ -277,9 +354,7 @@
                     if(line.includes("DONE")) {
                         logDiv.innerHTML += `<div class="text-success fw-bold mt-2"><i class="fa-solid fa-check-circle me-2"></i>Proceso Completado.</div>`;
                         logDiv.scrollTop = logDiv.scrollHeight;
-                        
-                        await loadGraph(); // Recargar Grafo
-                        
+                        await loadGraph(); 
                         setTimeout(() => {
                             progressArea.classList.add('d-none');
                             btn.disabled = false;
@@ -303,7 +378,7 @@
         }
     }
 
-    // --- 2. LÓGICA DE RAZONAMIENTO (Enrichment) ---
+    // --- 2. LÓGICA DE RAZONAMIENTO ---
     async function runReasoning() {
         const btn = document.getElementById('btnReasoning');
         const resDiv = document.getElementById('reasoningResult');
@@ -330,16 +405,12 @@
             }
         } catch(e) {
             resDiv.innerHTML = '<span class="text-danger">Error al ejecutar razonamiento.</span>';
-            console.error(e);
         } finally {
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }, 2000);
+            setTimeout(() => { btn.disabled = false; btn.innerHTML = originalText; }, 2000);
         }
     }
 
-    // --- 3. LÓGICA DE GRAFO (Vis.js) ---
+    // --- 3. GRAFO PRINCIPAL ---
     async function reloadGraph() { await loadGraph(); }
 
     async function loadGraph() {
@@ -355,11 +426,10 @@
             id: n.id, label: n.label, group: n.group, title: `<b>${n.label}</b><br>Cat: ${n.group}`
         })));
         
-        // Colorear diferente las relaciones inferidas si tuvieran un prefijo, opcional
         const edges = new vis.DataSet(data.edges.map(e => ({
             from: e.from, to: e.to, label: e.label, 
             arrows: 'to',
-            dashes: e.label.startsWith('INFERRED'), // Líneas punteadas si es inferido
+            dashes: e.label.startsWith('INFERRED'), 
             color: e.label.startsWith('INFERRED') ? '#f59e0b' : '#64748b' 
         })));
         
@@ -379,23 +449,29 @@
         if(network) { network.setData({nodes, edges}); } else { network = new vis.Network(container, {nodes, edges}, options); }
     }
 
-    // --- 4. LÓGICA DE CHAT RAG ---
+    // --- 4. CHAT Y LÓGICA DE INTERACCIÓN ---
+
     function handleEnter(e) { if(e.key === 'Enter') sendChat(); }
 
+    // Formateador profesional de respuesta IA
     function formatAIResponse(text) {
+        // Regex para capturar [[Concepto]]
         let formatted = text.replace(/\[\[(.*?)\]\]/g, (match, concept) => {
-            return `<span class="concept-link" onclick="exploreConcept('${concept}')" title="Clic para preguntar sobre '${concept}'"><i class="fa-solid fa-diagram-project fa-xs me-1 opacity-50"></i>${concept}</span>`;
+            // Escapar comillas simples por seguridad para el onclick
+            const safeConcept = concept.replace(/'/g, "\\'");
+            return `<span class="concept-pill" onclick="openConceptModal('${safeConcept}')" title="Clic para explorar '${concept}'">
+                        <i class="fa-solid fa-circle-nodes"></i> ${concept}
+                    </span>`;
         });
-        formatted = formatted.replace(/\(Ref: (.*?)\)/g, '<span class="ref-link" title="ID Fragmento: $1">[$1]</span>');
+        
+        // Formateo de Referencias (Ref: ID)
+        formatted = formatted.replace(/\(Ref: (.*?)\)/g, 
+            '<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 fw-normal font-monospace ms-1" style="font-size:0.7em; cursor:help;" title="Fragmento ID: $1">REF:$1</span>');
+        
+        // Markdown básico
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
-    }
-
-    function exploreConcept(conceptName) {
-        const input = document.getElementById('userPrompt');
-        input.value = `Háblame más sobre "${conceptName}" y sus relaciones en el grafo.`;
-        sendChat();
     }
 
     async function sendChat() {
@@ -469,5 +545,107 @@
     }
 
     function removeTyping(id) { const el = document.getElementById(id); if(el) el.remove(); }
+
+    // --- 5. LÓGICA DE MODAL DEEP DIVE (SUB-GRAFO) ---
+    async function openConceptModal(conceptName) {
+        // Abrir Modal
+        const modalEl = document.getElementById('conceptModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        
+        // Reset UI
+        document.getElementById('conceptModalTitle').innerText = conceptName;
+        document.getElementById('conceptLoading').classList.remove('d-none');
+        
+        try {
+            // Fetch Subgrafo
+            const encodedName = encodeURIComponent(conceptName);
+            const res = await fetch(`/api/graph/concept/${encodedName}`);
+            
+            if(!res.ok) throw new Error("No se pudo cargar la estructura");
+            
+            const data = await res.json();
+            currentSubGraphData = data; // Guardar para exportar
+            
+            renderConceptGraph(data, conceptName);
+            
+        } catch(e) {
+            console.error(e);
+            document.getElementById('conceptModalTitle').innerText = "Error cargando datos: " + conceptName;
+        } finally {
+            document.getElementById('conceptLoading').classList.add('d-none');
+        }
+    }
+
+    function renderConceptGraph(data, centerNodeId) {
+        const container = document.getElementById('conceptNetwork');
+        
+        const nodes = new vis.DataSet(data.nodes.map(n => {
+            const isCenter = n.id === centerNodeId;
+            return {
+                id: n.id,
+                label: n.label,
+                // Nodo central naranja, vecinos azules
+                color: isCenter ? { background: '#f59e0b', border: '#b45309' } : { background: '#3b82f6', border: '#1d4ed8' },
+                size: isCenter ? 30 : 20,
+                font: { size: isCenter ? 16 : 14, color: '#e2e8f0', face: 'Outfit', strokeWidth: 3, strokeColor: '#000000' },
+                shadow: true,
+                shape: 'dot'
+            };
+        }));
+
+        const edges = new vis.DataSet(data.edges.map(e => ({
+            from: e.from, 
+            to: e.to, 
+            label: e.label,
+            font: { align: 'middle', size: 10, color: '#94a3b8' },
+            arrows: 'to',
+            color: { color: '#64748b', opacity: 0.6 }
+        })));
+
+        const options = {
+            physics: {
+                forceAtlas2Based: { gravitationalConstant: -100, springLength: 120 },
+                solver: 'forceAtlas2Based',
+                stabilization: { iterations: 100 }
+            },
+            interaction: { zoomView: true, dragView: true }
+        };
+
+        if(conceptNetworkInstance) {
+            conceptNetworkInstance.destroy();
+        }
+        conceptNetworkInstance = new vis.Network(container, { nodes, edges }, options);
+    }
+
+    // --- 6. EXPORTAR DATOS ---
+    function exportSubGraph(format) {
+        if(!currentSubGraphData) return alert("No hay datos para exportar");
+
+        let content = "";
+        let filename = `graph_export_${Date.now()}`;
+        let mime = "text/plain";
+
+        if (format === 'json') {
+            content = JSON.stringify(currentSubGraphData, null, 2);
+            filename += ".json";
+            mime = "application/json";
+        } else if (format === 'csv') {
+            content = "ID,Label,Category\n" + 
+                currentSubGraphData.nodes.map(n => `"${n.id}","${n.label}","${n.group}"`).join("\n");
+            filename += ".csv";
+            mime = "text/csv";
+        }
+
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 </script>
 {% endblock %}

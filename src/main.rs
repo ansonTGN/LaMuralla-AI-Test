@@ -6,7 +6,7 @@ mod interface;
 use axum::{
     routing::{post, get}, 
     Router, 
-    response::{Redirect, IntoResponse}, // <-- Redirect e IntoResponse añadidos aquí
+    response::{Redirect, IntoResponse}, 
 }; 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -33,6 +33,7 @@ use crate::application::dtos::*;
         interface::handlers::admin::update_config,
         interface::handlers::ingest::ingest_document,
         interface::handlers::graph::get_graph,
+        interface::handlers::graph::get_concept_neighborhood,
         interface::handlers::chat::chat_handler,
         interface::handlers::reasoning::run_reasoning
     ),
@@ -42,7 +43,7 @@ use crate::application::dtos::*;
             IngestionRequest, IngestionResponse, 
             AdminConfigPayload,
             VisNode, VisEdge, GraphDataResponse,
-            ChatRequest, ChatResponse, // ChatResponse modificado en models.rs
+            ChatRequest, ChatResponse, 
             InferredRelation 
         )
     ),
@@ -120,21 +121,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tera, 
     });
 
-    let app = Router::new()
-        // API (sin protección, se asume que las llamadas vienen del frontend ya autenticado)
+let app = Router::new()
+        // API Docs
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        
+        // Endpoints API
         .route("/api/admin/config", post(admin::update_config))
         .route("/api/ingest", post(ingest::ingest_document))
         .route("/api/graph", get(graph::get_graph))
+        .route("/api/graph/concept/{name}", get(graph::get_concept_neighborhood)) // <-- CORREGIDO FINALMENTE
         .route("/api/chat", post(chat::chat_handler))
         .route("/api/reasoning/run", post(reasoning::run_reasoning))
         
-        // INTERFAZ DE USUARIO (Protegida)
-        .route("/", get(ui::render_login).post(ui::authenticate)) // Pantalla de Login y handler POST
-        .route("/dashboard", get(ui::render_dashboard_guarded)) // Dashboard, protegido por el guard
-        .route("/logout", get(|| async { Redirect::to("/").into_response() })) // Logout simple
+        // UI
+        .route("/", get(ui::render_login).post(ui::authenticate))
+        .route("/dashboard", get(ui::render_dashboard_guarded))
+        .route("/logout", get(|| async { Redirect::to("/").into_response() }))
         
-        // Capas de Axum
+        // Capas
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
         .with_state(app_state);
