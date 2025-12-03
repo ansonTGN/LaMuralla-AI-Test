@@ -3,7 +3,11 @@ mod application;
 mod infrastructure;
 mod interface;
 
-use axum::{routing::{post, get}, Router};
+use axum::{
+    routing::{post, get}, 
+    Router, 
+    response::{Redirect, IntoResponse}, // <-- Redirect e IntoResponse añadidos aquí
+}; 
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use neo4rs::Graph;
@@ -19,7 +23,7 @@ use crate::domain::ports::KGRepository;
 
 use crate::infrastructure::ai::rig_client::RigAIService;
 use crate::infrastructure::persistence::neo4j_repo::Neo4jRepo;
-use crate::interface::handlers::{admin::{self, AppState}, ingest, graph, ui, chat, reasoning}; // <-- reasoning añadido
+use crate::interface::handlers::{admin::{self, AppState}, ingest, graph, ui, chat, reasoning}; 
 use crate::application::dtos::*;
 
 // Documentación OpenAPI (Swagger)
@@ -30,7 +34,7 @@ use crate::application::dtos::*;
         interface::handlers::ingest::ingest_document,
         interface::handlers::graph::get_graph,
         interface::handlers::chat::chat_handler,
-        interface::handlers::reasoning::run_reasoning // <-- NUEVO
+        interface::handlers::reasoning::run_reasoning
     ),
     components(
         schemas(
@@ -38,8 +42,8 @@ use crate::application::dtos::*;
             IngestionRequest, IngestionResponse, 
             AdminConfigPayload,
             VisNode, VisEdge, GraphDataResponse,
-            ChatRequest, ChatResponse,
-            InferredRelation // <-- NUEVO
+            ChatRequest, ChatResponse, // ChatResponse modificado en models.rs
+            InferredRelation 
         )
     ),
     tags(
@@ -47,7 +51,7 @@ use crate::application::dtos::*;
         (name = "ingestion", description = "Data ingestion endpoints"),
         (name = "visualization", description = "Graph visual exploration"),
         (name = "chat", description = "Semantic GraphRAG Chat"),
-        (name = "reasoning", description = "AI Graph Enrichment") // <-- NUEVO
+        (name = "reasoning", description = "AI Graph Enrichment")
     )
 )]
 struct ApiDoc;
@@ -117,13 +121,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let app = Router::new()
+        // API (sin protección, se asume que las llamadas vienen del frontend ya autenticado)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/api/admin/config", post(admin::update_config))
         .route("/api/ingest", post(ingest::ingest_document))
         .route("/api/graph", get(graph::get_graph))
         .route("/api/chat", post(chat::chat_handler))
-        .route("/api/reasoning/run", post(reasoning::run_reasoning)) // <-- NUEVA RUTA
-        .route("/", get(ui::render_dashboard))
+        .route("/api/reasoning/run", post(reasoning::run_reasoning))
+        
+        // INTERFAZ DE USUARIO (Protegida)
+        .route("/", get(ui::render_login).post(ui::authenticate)) // Pantalla de Login y handler POST
+        .route("/dashboard", get(ui::render_dashboard_guarded)) // Dashboard, protegido por el guard
+        .route("/logout", get(|| async { Redirect::to("/").into_response() })) // Logout simple
+        
+        // Capas de Axum
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
         .with_state(app_state);
