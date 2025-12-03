@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::domain::models::{AIConfig, KnowledgeExtraction, GraphDataResponse, HybridContext};
+use crate::domain::models::{AIConfig, KnowledgeExtraction, GraphDataResponse, HybridContext, InferredRelation, InferenceResult};
 use crate::domain::errors::AppError;
 use uuid::Uuid;
 
@@ -11,9 +11,11 @@ pub trait KGRepository: Send + Sync {
     async fn create_indexes(&self, dim: usize) -> Result<(), AppError>;
     
     async fn get_full_graph(&self) -> Result<GraphDataResponse, AppError>;
-
-    // --- NUEVO: Búsqueda Semántica Híbrida ---
     async fn find_hybrid_context(&self, embedding: Vec<f32>, limit: usize) -> Result<Vec<HybridContext>, AppError>;
+
+    // --- NUEVO: Métodos para razonamiento ---
+    async fn get_graph_context_for_reasoning(&self, limit: usize) -> Result<String, AppError>;
+    async fn save_inferred_relations(&self, relations: Vec<InferredRelation>) -> Result<(), AppError>;
 }
 
 #[async_trait]
@@ -21,7 +23,8 @@ pub trait AIService: Send + Sync {
     async fn extract_knowledge(&self, text: &str) -> Result<KnowledgeExtraction, AppError>;
     async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, AppError>;
     fn update_config(&mut self, config: AIConfig) -> Result<(), AppError>;
-    
-    // --- NUEVO MÉTODO ---
     fn get_config(&self) -> AIConfig;
+
+    // --- NUEVO: Método para inferencia ---
+    async fn generate_inference(&self, prompt: &str) -> Result<InferenceResult, AppError>;
 }

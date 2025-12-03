@@ -2,10 +2,10 @@
 
 {% block content %}
 <style>
-    /* Estilos para Chat Semántico */
+    /* --- Estilos Chat RAG --- */
     .concept-link {
         color: #2c3e50;
-        background-color: rgba(59, 130, 246, 0.15); /* Azul claro */
+        background-color: rgba(59, 130, 246, 0.15);
         border-bottom: 2px solid #3b82f6;
         font-weight: 600;
         cursor: pointer;
@@ -26,12 +26,24 @@
         margin-left: 2px;
         font-family: 'Roboto Mono', monospace;
     }
-    .modal-content {
-        border-radius: 12px;
+    
+    /* --- Estilos UI Generales --- */
+    .modal-content { border-radius: 12px; }
+    
+    /* Logs de Ingestión */
+    #progressLog div {
+        margin-bottom: 2px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 2px;
     }
+
+    /* Pestañas */
+    .nav-tabs .nav-link { color: #64748b; border: none; border-bottom: 2px solid transparent; }
+    .nav-tabs .nav-link.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; background: transparent; }
+    .nav-tabs .nav-link:hover { border-color: transparent; color: #3b82f6; }
 </style>
 
-<!-- NAV -->
+<!-- NAVBAR -->
 <nav class="navbar navbar-dark px-4 shadow-sm">
     <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#">
         <i class="fa-solid fa-shield-halved text-info"></i> 
@@ -46,26 +58,88 @@
 
 <div class="container-fluid">
     <div class="row">
-        <!-- SIDEBAR: INGESTIÓN -->
+        <!-- SIDEBAR IZQUIERDO -->
         <div class="col-md-4 col-lg-3 sidebar p-4 d-flex flex-column shadow-sm">
+            
+            <!-- SECCIÓN 1: INGESTIÓN -->
             <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-database me-2"></i>Ingestión</h5>
             
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-light rounded">
-                    <label class="form-label fw-bold small text-uppercase text-muted">Documento / Texto</label>
-                    <textarea id="ingestContent" class="form-control border-0 shadow-none mb-3" rows="8" placeholder="Escribe aquí el texto clínico, legal o técnico para procesar..." style="resize: none; font-size: 0.9rem;"></textarea>
-                    
-                    <button onclick="ingestData()" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
+                <!-- Pestañas -->
+                <div class="card-header bg-white border-bottom-0 pt-3 px-0 mx-3">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active small fw-bold" id="tab-btn-text" data-bs-toggle="tab" data-bs-target="#tab-text">
+                                <i class="fa-solid fa-pen-nib me-1"></i> Texto
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link small fw-bold" id="tab-btn-file" data-bs-toggle="tab" data-bs-target="#tab-file">
+                                <i class="fa-solid fa-file-arrow-up me-1"></i> Archivo
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card-body bg-light rounded-bottom">
+                    <div class="tab-content mb-3">
+                        <!-- Tab Texto -->
+                        <div class="tab-pane fade show active" id="tab-text">
+                            <textarea id="ingestContent" class="form-control border-0 shadow-none" rows="5" placeholder="Pega aquí textos legales, clínicos o técnicos..." style="resize: none; font-size: 0.9rem;"></textarea>
+                        </div>
+                        <!-- Tab Archivo -->
+                        <div class="tab-pane fade" id="tab-file">
+                            <div class="text-center p-4 border border-dashed rounded bg-white">
+                                <div class="d-flex justify-content-center gap-3 mb-3 opacity-50">
+                                    <i class="fa-solid fa-file-pdf fa-2x text-danger"></i>
+                                    <i class="fa-solid fa-file-word fa-2x text-primary"></i>
+                                    <i class="fa-solid fa-file-lines fa-2x text-secondary"></i>
+                                </div>
+                                <div class="small text-muted mb-3">Soporta: PDF, DOCX, TXT</div>
+                                <input type="file" id="ingestFile" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="startIngestion()" id="btnIngest" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
                         <i class="fa-solid fa-microchip me-2"></i> PROCESAR
                     </button>
                 </div>
             </div>
 
-            <div class="mt-auto">
-                <div class="alert alert-info border-0 d-flex align-items-center small" role="alert">
+            <!-- Área de Progreso (Oculta por defecto) -->
+            <div id="progressArea" class="d-none mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small fw-bold text-muted">Estado del Proceso</span>
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+                <div class="progress mb-2" style="height: 6px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                </div>
+                <div id="progressLog" class="small font-monospace text-muted p-2 bg-white border rounded shadow-sm" style="max-height: 120px; overflow-y: auto; font-size: 0.75rem;"></div>
+            </div>
+
+            <!-- SECCIÓN 2: RAZONAMIENTO (NUEVO) -->
+            <hr class="my-4">
+            <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-brain me-2"></i>Razonamiento</h5>
+            <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+                <div class="card-body">
+                    <p class="small text-muted mb-2 lh-sm">
+                        Detecta conexiones lógicas ocultas entre documentos dispares.
+                    </p>
+                    <button onclick="runReasoning()" id="btnReasoning" class="btn btn-warning text-dark w-100 fw-bold py-2 shadow-sm border border-warning">
+                        <i class="fa-solid fa-lightbulb me-2"></i> CONSOLIDAR GRAFO
+                    </button>
+                    <div id="reasoningResult" class="mt-2 small text-center d-none"></div>
+                </div>
+            </div>
+
+            <!-- FOOTER INFO -->
+            <div class="mt-auto pt-4">
+                <div class="alert alert-info border-0 d-flex align-items-center small mb-0" role="alert">
                     <i class="fa-solid fa-circle-info me-2 fs-4"></i>
                     <div>
-                        <strong>Motor RAG Activo</strong><br>
+                        <strong>Motor Activo</strong><br>
                         Modelo: {{ config.model_name }}<br>
                         Embeddings: {{ config.embedding_dim }} dims
                     </div>
@@ -97,7 +171,7 @@
     </div>
 </div>
 
-<!-- BOTÓN FLOTANTE CHAT (Smart Maintenance Style) -->
+<!-- BOTÓN FLOTANTE CHAT -->
 <button class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" 
         style="position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; z-index: 1050; transition: transform 0.2s;"
         onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
@@ -105,11 +179,10 @@
     <i class="fa-solid fa-robot fa-xl"></i>
 </button>
 
-<!-- MODAL CHAT RAG INTERACTIVO -->
+<!-- MODAL CHAT -->
 <div class="modal fade" id="chatModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content border-0 shadow-lg" style="height: 80vh;">
-            <!-- Header -->
             <div class="modal-header bg-dark text-white py-3">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fa-solid fa-brain text-info"></i>
@@ -117,11 +190,8 @@
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            
-            <!-- Chat Body -->
             <div class="modal-body bg-light d-flex flex-column p-0">
                 <div id="chatArea" class="flex-grow-1 overflow-auto p-4">
-                    <!-- Mensaje Bienvenida -->
                     <div class="d-flex align-items-start mb-3">
                         <div class="bg-white text-dark border rounded p-3 shadow-sm" style="max-width: 85%;">
                             <div class="fw-bold small text-primary mb-1"><i class="fa-solid fa-robot me-1"></i> Sistema</div>
@@ -130,11 +200,9 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Input -->
             <div class="modal-footer p-3 bg-white border-top">
                 <div class="input-group">
-                    <input type="text" id="userPrompt" class="form-control border bg-light" placeholder="Pregunta algo (ej. ¿Qué síntomas tiene...?)" onkeypress="handleEnter(event)">
+                    <input type="text" id="userPrompt" class="form-control border bg-light" placeholder="Pregunta algo..." onkeypress="handleEnter(event)">
                     <button class="btn btn-primary px-4 fw-bold" onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
@@ -148,27 +216,130 @@
 <script>
     let network;
     
-    // --- LÓGICA GRAFO (Existente) ---
+    // Carga inicial
     document.addEventListener('DOMContentLoaded', () => { loadGraph(); });
 
-    async function ingestData() {
-        const content = document.getElementById('ingestContent').value;
-        if(content.length < 5) return alert("El texto es muy corto");
-        document.getElementById('loading').style.display = 'flex';
+    // --- 1. LÓGICA DE INGESTIÓN (Streaming & Archivos) ---
+    async function startIngestion() {
+        const btn = document.getElementById('btnIngest');
+        const progressArea = document.getElementById('progressArea');
+        const logDiv = document.getElementById('progressLog');
+        const fileInput = document.getElementById('ingestFile');
+        const textInput = document.getElementById('ingestContent');
+        
+        const formData = new FormData();
+        let hasData = false;
+        
+        // Verificar pestaña activa
+        const isTextActive = document.getElementById('tab-btn-text').classList.contains('active');
+
+        if (isTextActive) {
+            if (textInput.value.trim().length > 0) {
+                formData.append('content', textInput.value);
+                hasData = true;
+            }
+        } else {
+            if (fileInput.files[0]) {
+                formData.append('file', fileInput.files[0]);
+                hasData = true;
+            }
+        }
+
+        if(!hasData) return alert("Por favor, selecciona un archivo o escribe un texto válido.");
+
+        // UI Reset
+        btn.disabled = true;
+        progressArea.classList.remove('d-none');
+        logDiv.innerHTML = '<div class="text-primary"><i class="fa-solid fa-satellite-dish me-2"></i>Conectando con el motor...</div>';
+        
         try {
-            const res = await fetch('/api/ingest', {
+            const response = await fetch('/api/ingest', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: content, metadata: {} })
+                body: formData
             });
-            if(res.ok) {
-                document.getElementById('ingestContent').value = "";
-                await loadGraph();
-            } else { alert("Error en la ingestión"); }
-        } catch(e) { console.error(e); alert("Error de conexión"); } 
-        finally { document.getElementById('loading').style.display = 'none'; }
+
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+
+            // Leer Stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if(!line.trim()) continue;
+                    
+                    if(line.includes("DONE")) {
+                        logDiv.innerHTML += `<div class="text-success fw-bold mt-2"><i class="fa-solid fa-check-circle me-2"></i>Proceso Completado.</div>`;
+                        logDiv.scrollTop = logDiv.scrollHeight;
+                        
+                        await loadGraph(); // Recargar Grafo
+                        
+                        setTimeout(() => {
+                            progressArea.classList.add('d-none');
+                            btn.disabled = false;
+                            textInput.value = "";
+                            fileInput.value = "";
+                            logDiv.innerHTML = "";
+                        }, 3000);
+                        return;
+                    } else if (line.includes("Error")) {
+                        logDiv.innerHTML += `<div class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>${line}</div>`;
+                    } else {
+                        logDiv.innerHTML += `<div><i class="fa-solid fa-caret-right me-2 opacity-50"></i>${line}</div>`;
+                    }
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                }
+            }
+        } catch(e) {
+            console.error(e);
+            logDiv.innerHTML += `<div class="text-danger fw-bold mt-2">Error de conexión: ${e.message}</div>`;
+            btn.disabled = false;
+        }
     }
 
+    // --- 2. LÓGICA DE RAZONAMIENTO (Enrichment) ---
+    async function runReasoning() {
+        const btn = document.getElementById('btnReasoning');
+        const resDiv = document.getElementById('reasoningResult');
+        
+        btn.disabled = true;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Pensando...';
+        
+        resDiv.classList.remove('d-none');
+        resDiv.className = 'mt-2 small text-muted text-center';
+        resDiv.innerHTML = 'Analizando relaciones latentes...';
+        
+        try {
+            const res = await fetch('/api/reasoning/run', { method: 'POST' });
+            if(!res.ok) throw new Error("Error en servidor");
+            
+            const data = await res.json();
+            
+            if(data.length === 0) {
+                resDiv.innerHTML = 'El grafo ya parece coherente. No se infirieron nuevas relaciones.';
+            } else {
+                resDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-plus me-1"></i>¡${data.length} nuevas conexiones!</span><br>Actualizando visualización...`;
+                await loadGraph();
+            }
+        } catch(e) {
+            resDiv.innerHTML = '<span class="text-danger">Error al ejecutar razonamiento.</span>';
+            console.error(e);
+        } finally {
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }, 2000);
+        }
+    }
+
+    // --- 3. LÓGICA DE GRAFO (Vis.js) ---
     async function reloadGraph() { await loadGraph(); }
 
     async function loadGraph() {
@@ -183,42 +354,46 @@
         const nodes = new vis.DataSet(data.nodes.map(n => ({
             id: n.id, label: n.label, group: n.group, title: `<b>${n.label}</b><br>Cat: ${n.group}`
         })));
+        
+        // Colorear diferente las relaciones inferidas si tuvieran un prefijo, opcional
         const edges = new vis.DataSet(data.edges.map(e => ({
-            from: e.from, to: e.to, label: e.label, arrows: 'to'
+            from: e.from, to: e.to, label: e.label, 
+            arrows: 'to',
+            dashes: e.label.startsWith('INFERRED'), // Líneas punteadas si es inferido
+            color: e.label.startsWith('INFERRED') ? '#f59e0b' : '#64748b' 
         })));
+        
         const container = document.getElementById('network-container');
         const options = {
             nodes: { shape: 'dot', size: 20, font: { size: 14, color: '#e2e8f0', face: 'Outfit' }, borderWidth: 2, shadow: true },
-            edges: { width: 1, color: { color: '#64748b', highlight: '#3b82f6' }, font: { size: 10, align: 'middle', color: '#94a3b8', strokeWidth: 0 }, smooth: { type: 'continuous' } },
-            groups: { "Concepto": { color: { background: '#f59e0b', border: '#b45309' } }, "Actor": { color: { background: '#3b82f6', border: '#1d4ed8' } }, "Sintoma": { color: { background: '#ef4444', border: '#b91c1c' } } },
+            edges: { width: 1, font: { size: 10, align: 'middle', color: '#94a3b8', strokeWidth: 0 }, smooth: { type: 'continuous' } },
+            groups: { 
+                "Concepto": { color: { background: '#f59e0b', border: '#b45309' } }, 
+                "Actor": { color: { background: '#3b82f6', border: '#1d4ed8' } }, 
+                "Sintoma": { color: { background: '#ef4444', border: '#b91c1c' } } 
+            },
             physics: { forceAtlas2Based: { gravitationalConstant: -50, centralGravity: 0.005, springLength: 100, springConstant: 0.08 }, maxVelocity: 50, solver: 'forceAtlas2Based', timestep: 0.35, stabilization: { iterations: 150 } },
             interaction: { hover: true, tooltipDelay: 200 }
         };
+        
         if(network) { network.setData({nodes, edges}); } else { network = new vis.Network(container, {nodes, edges}, options); }
     }
 
-    // --- LÓGICA CHAT RAG INTERACTIVO (Nueva) ---
-
+    // --- 4. LÓGICA DE CHAT RAG ---
     function handleEnter(e) { if(e.key === 'Enter') sendChat(); }
 
-    // Procesa el texto del LLM para crear enlaces interactivos
     function formatAIResponse(text) {
-        // 1. Convertir [[Concepto]] en span interactivo
         let formatted = text.replace(/\[\[(.*?)\]\]/g, (match, concept) => {
             return `<span class="concept-link" onclick="exploreConcept('${concept}')" title="Clic para preguntar sobre '${concept}'"><i class="fa-solid fa-diagram-project fa-xs me-1 opacity-50"></i>${concept}</span>`;
         });
-        // 2. Estilar (Ref: ID)
         formatted = formatted.replace(/\(Ref: (.*?)\)/g, '<span class="ref-link" title="ID Fragmento: $1">[$1]</span>');
-        // 3. Markdown simple
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
     }
 
-    // Acción al hacer clic en un concepto: Deep Dive
     function exploreConcept(conceptName) {
         const input = document.getElementById('userPrompt');
-        // Generamos automáticamente una pregunta de profundización
         input.value = `Háblame más sobre "${conceptName}" y sus relaciones en el grafo.`;
         sendChat();
     }
@@ -244,10 +419,8 @@
             
             removeTyping(loadingId);
             
-            // Formatear respuesta con interactividad
             let content = formatAIResponse(data.response);
             
-            // Mostrar fuentes (Contexto)
             if(data.context_used && data.context_used.length > 0) {
                 content += `
                 <div class="mt-3 pt-2 border-top small text-muted">

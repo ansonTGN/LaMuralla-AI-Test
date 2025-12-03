@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::collections::HashSet;
 use crate::domain::{
     ports::KGRepository, 
-    models::{KnowledgeExtraction, GraphDataResponse, VisNode, VisEdge, HybridContext}, 
+    models::{KnowledgeExtraction, GraphDataResponse, VisNode, VisEdge, HybridContext, InferredRelation}, 
     errors::AppError
 };
 
@@ -22,7 +22,6 @@ impl Neo4jRepo {
 #[async_trait]
 impl KGRepository for Neo4jRepo {
     async fn create_indexes(&self, dim: usize) -> Result<(), AppError> {
-        // Índice vectorial
         let q = format!(
             "CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS FOR (c:DocumentChunk) ON (c.embedding) \
              OPTIONS {{indexConfig: {{ `vector.dimensions`: {}, `vector.similarity_function`: 'cosine' }} }}", 
@@ -30,7 +29,6 @@ impl KGRepository for Neo4jRepo {
         );
         self.graph.run(query(&q)).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         
-        // Constraint de unicidad
         self.graph.run(query("CREATE CONSTRAINT entity_name IF NOT EXISTS FOR (e:Entity) REQUIRE e.name IS UNIQUE")).await
             .map_err(|e| AppError::DatabaseError(e.to_string()))?;
             
@@ -120,9 +118,7 @@ impl KGRepository for Neo4jRepo {
         Ok(GraphDataResponse { nodes: nodes_vec, edges: edges_vec })
     }
 
-    // --- IMPLEMENTACIÓN NUEVA: RAG SEMÁNTICO HÍBRIDO ---
     async fn find_hybrid_context(&self, embedding: Vec<f32>, limit: usize) -> Result<Vec<HybridContext>, AppError> {
-        // Busca Chunks por similitud vectorial Y expande a las Entidades conectadas
         let q_str = format!(
             "CALL db.index.vector.queryNodes('chunk_embeddings', {}, $embedding) \
              YIELD node as chunk, score \
@@ -148,5 +144,56 @@ impl KGRepository for Neo4jRepo {
         }
         
         Ok(results)
+    }
+
+    // --- IMPLEMENTACIÓN: RAZONAMIENTO ---
+
+    async fn get_graph_context_for_reasoning(&self, limit: usize) -> Result<String, AppError> {
+        // Obtenemos las relaciones más "densas" para dar contexto
+        let q = query(
+            "MATCH (n:Entity)-[r]->(m:Entity) 
+             WITH n, r, m, count(n) as degree 
+             ORDER BY degree DESC 
+             LIMIT $limit 
+             RETURN n.name, type(r), m.name"
+        ).param("limit", limit as i64);
+
+        let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        let mut context = String::new();
+
+        while let Ok(Some(row)) = stream.next().await {
+            let n: String = row.get("n.name").unwrap_or_default();
+            let r: String = row.get("type(r)").unwrap_or_default();
+            let m: String = row.get("m.name").unwrap_or_default();
+            context.push_str(&format!("({}) -[{}]-> ({})\n", n, r, m));
+        }
+
+        if context.is_empty() {
+            return Ok("El grafo está vacío.".to_string());
+        }
+        Ok(context)
+    }
+
+    async fn save_inferred_relations(&self, relations: Vec<InferredRelation>) -> Result<(), AppError> {
+        let mut txn = self.graph.start_txn().await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        for rel in relations {
+            let cypher = format!(
+                "MATCH (a:Entity {{name: $source}}), (b:Entity {{name: $target}}) \
+                 MERGE (a)-[r:INFERRED_{}]->(b) \
+                 ON CREATE SET r.reasoning = $reasoning, r.is_ai_generated = true",
+                rel.relation.replace(" ", "_").to_uppercase()
+            );
+            
+            let q = query(&cypher)
+                .param("source", rel.source)
+                .param("target", rel.target)
+                .param("reasoning", rel.reasoning);
+                
+            txn.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        }
+
+        txn.commit().await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
 }

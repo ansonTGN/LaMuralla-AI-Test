@@ -2,8 +2,13 @@
 
 use axum::{Json, extract::State};
 use std::sync::Arc;
-use rig::{completion::Prompt, providers::openai};
-use secrecy::ExposeSecret; // Importante para leer la key
+use rig::{
+    completion::Prompt, 
+    providers::openai::{self, OpenAIResponsesExt}, // Importamos Ext
+    client::CompletionClient // ¡IMPORTANTE! Trait para .agent()
+};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE}; // Necesario para Headers
+use secrecy::ExposeSecret; 
 use crate::domain::{models::{ChatRequest, ChatResponse}, errors::AppError};
 use super::admin::AppState;
 
@@ -25,7 +30,7 @@ pub async fn chat_handler(
     // 1. Obtener lock de lectura del servicio IA
     let ai_guard = state.ai_service.read().await;
 
-    // 2. Generar Embedding (Usa la configuración interna del servicio: Groq/Ollama/OpenAI)
+    // 2. Generar Embedding
     let embedding = ai_guard.generate_embedding(&payload.message).await?;
     
     // 3. Recuperación Híbrida en Neo4j
@@ -55,13 +60,26 @@ CONTEXTO:
 {}"#, context_text);
 
     // 5. Configurar el cliente LLM dinámicamente
-    // Obtenemos la config actual (URL de Groq/Ollama, Key, Modelo)
     let config = ai_guard.get_config(); 
+    let base_url = config.base_url.as_deref().unwrap_or("https://api.openai.com/v1");
+    let api_key = config.api_key.expose_secret();
+
+    // Construcción manual del cliente (Reemplazo de from_url)
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     
-    // Construimos el cliente usando la URL base correcta
-    let client = openai::Client::from_url(
-        config.api_key.expose_secret(), 
-        config.base_url.as_deref().unwrap_or("https://api.openai.com/v1")
+    if !api_key.is_empty() {
+        if let Ok(mut val) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
+            val.set_sensitive(true);
+            headers.insert(AUTHORIZATION, val);
+        }
+    }
+
+    let client = openai::Client::from_parts(
+        base_url.to_string(),
+        headers,
+        reqwest::Client::new(),
+        OpenAIResponsesExt,
     );
 
     let agent = client.agent(&config.model_name)

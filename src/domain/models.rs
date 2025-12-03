@@ -79,7 +79,7 @@ pub struct GraphDataResponse {
     pub edges: Vec<VisEdge>,
 }
 
-// --- NUEVOS MODELOS PARA CHAT RAG ---
+// --- CHAT RAG ---
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatRequest {
@@ -89,13 +89,27 @@ pub struct ChatRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatResponse {
     pub response: String,
-    pub context_used: Vec<String>, // Referencias para mostrar en UI
+    pub context_used: Vec<String>,
 }
 
-// Estructura interna para mover datos de Neo4j al Handler
 #[derive(Debug, Clone)]
 pub struct HybridContext {
     pub chunk_id: String,
     pub content: String,
     pub connected_entities: Vec<String>, 
+}
+
+// --- NUEVO: RAZONAMIENTO E INFERENCIA ---
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct InferredRelation {
+    pub source: String,
+    pub target: String,
+    pub relation: String,
+    pub reasoning: String, // Explicación de por qué la IA creó esto
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InferenceResult {
+    pub new_relations: Vec<InferredRelation>,
 }
