@@ -21,4 +21,7 @@ pub trait AIService: Send + Sync {
     async fn extract_knowledge(&self, text: &str) -> Result<KnowledgeExtraction, AppError>;
     async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, AppError>;
     fn update_config(&mut self, config: AIConfig) -> Result<(), AppError>;
+    
+    // --- NUEVO MÉTODO ---
+    fn get_config(&self) -> AIConfig;
 }
