@@ -5,20 +5,24 @@ edition = "2021"
 
 [dependencies]
 # Web Framework
-# IMPORTANTE: Se añade la feature "multipart"
 axum = { version = "0.8.7", features = ["macros", "multipart"] }
+axum-core = "0.5.5"
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5.2", features = ["util", "timeout"] }
 tower-http = { version = "0.6.7", features = ["cors", "trace", "auth", "fs"] }
 
-# Streaming & Async Utils (NUEVOS)
+# Streaming & Async Utils
 tokio-stream = "0.1"
 futures = "0.3"
 
-# Parsing de Documentos (NUEVOS)
-lopdf = "0.32.0"   # Para leer PDFs
-zip = "0.6"        # Para leer DOCX (formato zip)
-xml-rs = "0.8"     # Para parsear el XML interno del DOCX
+# Parsing de Documentos (Expandido / Transmutación)
+lopdf = "0.32.0"
+zip = "0.6"
+xml-rs = "0.8"
+calamine = "0.32.0"
+csv = "1.3.0"
+html2text = "0.16.4"
+anyhow = "1.0"
 
 # Serialization & Validation
 serde = { version = "1", features = ["derive"] }
@@ -27,18 +31,17 @@ validator = { version = "0.20.0", features = ["derive"] }
 
 # Documentation
 utoipa = { version = "5.4.0", features = ["axum_extras", "uuid"] }
-utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] } 
 
 # Database & AI
-neo4rs = "0.7.3"
-# Nota: La versión de rig-core puede variar, usamos la compatible con tu código
+neo4rs = "0.8.0"
 rig-core = "0.25.0"
-reqwest = { version = "0.12.24", features = ["json", "multipart"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] } 
 
 # Utils
-secrecy = { version = "0.8.0", features = ["serde"] }
+secrecy = { version = "0.10.3", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-thiserror = "1"
+thiserror = "2.0.17"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
