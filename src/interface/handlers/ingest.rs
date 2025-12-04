@@ -5,11 +5,11 @@ use axum::{
 };
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio::task; // Importante para spawn_blocking
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use crate::application::ingestion::IngestionService;
-// IMPORTANTE: Usamos el nuevo módulo
 use crate::infrastructure::transmutation::DocumentTransmuter;
 use super::admin::AppState;
 
@@ -35,32 +35,43 @@ pub async fn ingest_document(
 
     tokio::spawn(async move {
         let mut content = String::new();
-        let mut filename = String::from("unknown");
+        // let mut filename = String::from("unknown"); // Ya no es necesario mut fuera del loop
 
         while let Ok(Some(field)) = multipart.next_field().await {
             let name = field.name().unwrap_or("").to_string();
 
             if name == "file" {
-                filename = field.file_name().unwrap_or("archivo_desconocido").to_string();
+                let filename = field.file_name().unwrap_or("archivo_desconocido").to_string();
                 let _ = tx_inner.send(format!("📂 Recibido archivo: {}", filename)).await;
                 
-                // Leemos los bytes a memoria (cuidado con archivos >100MB, idealmente streaming)
                 match field.bytes().await {
                     Ok(bytes) => {
-                         let _ = tx_inner.send("✨ Transmutando formato a texto plano...".to_string()).await;
+                         let _ = tx_inner.send("✨ Transmutando formato a texto plano (Background)...".to_string()).await;
                          
-                         // --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
-                         match DocumentTransmuter::transmute(&filename, &bytes) {
-                            Ok(text) => {
+                         // --- ESCALABILIDAD: CPU INTENSIVE TASK ---
+                         // Movemos la transmutación a un hilo bloqueante para no detener el runtime async
+                         let filename_clone = filename.clone();
+                         let bytes_vec = bytes.to_vec(); // Convertimos a Vec para mover ownership al hilo
+
+                         let transmutation_result = task::spawn_blocking(move || {
+                            DocumentTransmuter::transmute(&filename_clone, &bytes_vec)
+                         }).await;
+                         
+                         match transmutation_result {
+                             Ok(Ok(text)) => {
                                 content = text;
                                 let _ = tx_inner.send(format!("✅ Transmutación exitosa ({} caracteres).", content.len())).await;
-                            },
-                            Err(e) => {
-                                let _ = tx_inner.send(format!("❌ Error de Transmutación: {}", e)).await;
-                                return; // Detener si falla la conversión
-                            }
+                             },
+                             Ok(Err(e)) => {
+                                 let _ = tx_inner.send(format!("❌ Error de lógica en Transmutación: {}", e)).await;
+                                 return;
+                             },
+                             Err(e) => {
+                                 let _ = tx_inner.send(format!("❌ Pánico en hilo de procesamiento: {}", e)).await;
+                                 return;
+                             }
                          }
-                         // --------------------------------
+                         // ----------------------------------------
                     },
                     Err(e) => {
                         let _ = tx_inner.send(format!("❌ Error subida: {}", e)).await;

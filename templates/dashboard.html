@@ -2,26 +2,26 @@
 
 {% block content %}
 <style>
-    /* --- Layout Split-Screen Profesional --- */
+    /* --- Layout Split-Screen --- */
     body { overflow: hidden; background: #0f172a; }
     
     .app-container {
         display: flex;
         height: 100vh;
-        padding-top: 50px; /* Navbar space */
+        padding-top: 50px;
     }
 
-    /* PANE IZQUIERDO: GRAFO (Inmersivo) */
+    /* PANE IZQUIERDO: GRAFO */
     .pane-graph {
-        flex: 6; /* 60% width */
+        flex: 6;
         background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
         position: relative;
         border-right: 1px solid #334155;
     }
 
-    /* PANE DERECHO: INTERACCIÓN (Papel/Utilidad) */
+    /* PANE DERECHO: INTERACCIÓN */
     .pane-sidebar {
-        flex: 4; /* 40% width */
+        flex: 4;
         background: #f8fafc;
         display: flex;
         flex-direction: column;
@@ -29,7 +29,6 @@
         z-index: 20;
     }
 
-    /* --- Navbar Minimalista --- */
     .navbar-glass {
         height: 50px;
         background: #0f172a;
@@ -49,11 +48,13 @@
         border: 1px solid rgba(255,255,255,0.1);
         color: #e2e8f0;
         font-size: 0.8rem;
-        pointer-events: none; /* Click through */
         user-select: none;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        z-index: 10;
+        width: 180px;
     }
     
-    /* --- Chat UI --- */
+    /* --- Chat UI Refinada --- */
     .chat-history {
         flex-grow: 1;
         overflow-y: auto;
@@ -70,49 +71,74 @@
     .message-user {
         background: #3b82f6;
         color: white;
-        padding: 1rem;
+        padding: 1rem 1.25rem;
         border-radius: 16px 16px 2px 16px;
-        margin-left: 2rem;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        margin-left: 3rem;
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.25);
     }
 
     .message-ai {
         background: white;
-        border: 1px solid #e2e8f0;
+        border-left: 4px solid #6366f1; /* Accent border */
         padding: 1.5rem;
-        border-radius: 16px 16px 16px 2px;
+        border-radius: 8px; /* Slightly more boxy for documents */
         margin-right: 1rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         color: #334155;
     }
 
-    /* Citas Interactivas */
     .citation-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 20px; height: 20px;
-        background: #e0e7ff;
-        color: #4f46e5;
+        background: #eff6ff;
+        color: #2563eb;
         border-radius: 50%;
         font-size: 10px;
         font-weight: bold;
         margin: 0 2px;
         cursor: pointer;
-        border: 1px solid #c7d2fe;
+        border: 1px solid #bfdbfe;
         transition: all 0.2s;
         vertical-align: super;
     }
     .citation-badge:hover {
-        background: #4f46e5; color: white; transform: scale(1.2);
+        background: #2563eb; color: white; transform: scale(1.2);
     }
     
-    /* Fuente de Markdown */
+    /* Markdown Styling */
     .md-content p { margin-bottom: 0.8rem; line-height: 1.6; }
     .md-content strong { color: #0f172a; font-weight: 700; }
-    .md-content ul { padding-left: 1.2rem; }
+    .md-content ul, .md-content ol { padding-left: 1.2rem; margin-bottom: 1rem; }
+    .md-content pre { 
+        background: #1e293b; color: #f8fafc; 
+        padding: 1rem; border-radius: 8px; 
+        overflow-x: auto; font-size: 0.85em; 
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .md-content code {
+        background: rgba(0,0,0,0.05);
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9em;
+        color: #ef4444;
+    }
 
-    /* Tabs Sidebar */
+    /* Input Area */
+    #userPrompt {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        transition: all 0.2s;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    }
+    #userPrompt:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Tabs */
     .nav-tabs-custom .nav-link {
         border: none;
         color: #64748b;
@@ -120,7 +146,9 @@
         font-size: 0.9rem;
         padding: 1rem;
         border-bottom: 2px solid transparent;
+        transition: color 0.2s;
     }
+    .nav-tabs-custom .nav-link:hover { color: #334155; }
     .nav-tabs-custom .nav-link.active {
         color: #3b82f6;
         background: transparent;
@@ -138,8 +166,7 @@
     </div>
     <div class="d-flex gap-3 text-xs text-muted">
         <span><i class="fa-solid fa-server me-1"></i> {{ config.model_name }}</span>
-        <span><i class="fa-solid fa-circle text-success me-1"></i> Live</span>
-        <a href="/logout" class="text-secondary"><i class="fa-solid fa-power-off"></i></a>
+        <a href="/logout" class="text-secondary hover-text-white transition"><i class="fa-solid fa-power-off"></i></a>
     </div>
 </nav>
 
@@ -150,7 +177,7 @@
     <div class="pane-graph">
         <!-- HUD Overlay -->
         <div class="graph-hud">
-            <div class="mb-2 fw-bold text-uppercase tracking-wider opacity-75">Ontología</div>
+            <div class="mb-2 fw-bold text-uppercase tracking-wider opacity-75 text-xs">Ontología</div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <span class="d-inline-block rounded-circle" style="width:8px; height:8px; background:#6366f1; box-shadow: 0 0 5px #6366f1;"></span> Entidad
             </div>
@@ -160,10 +187,22 @@
             <div class="d-flex align-items-center gap-2 mb-1">
                 <span class="d-inline-block rounded-circle" style="width:8px; height:8px; background:#ef4444;"></span> Inferencia
             </div>
+            
+            <!-- FILTROS AÑADIDOS -->
             <hr class="border-secondary opacity-25 my-2">
-            <div class="text-xs text-muted">
-                <i class="fa-solid fa-mouse me-1"></i> Doble clic: Focalizar<br>
-                <i class="fa-solid fa-hand-pointer me-1"></i> Hover Cita: Iluminar
+            <div class="fw-bold text-xs mb-2 opacity-75">VISIBILIDAD</div>
+            <div class="form-check form-switch text-xs mb-1">
+                <input class="form-check-input" type="checkbox" id="filterEntities" checked onchange="updateFilters()">
+                <label class="form-check-label" for="filterEntities">Entidades</label>
+            </div>
+            <div class="form-check form-switch text-xs">
+                <input class="form-check-input" type="checkbox" id="filterConcepts" checked onchange="updateFilters()">
+                <label class="form-check-label" for="filterConcepts">Conceptos</label>
+            </div>
+
+            <hr class="border-secondary opacity-25 my-2">
+            <div class="text-xs text-muted opacity-75">
+                <i class="fa-solid fa-mouse me-1"></i> Doble clic: Focalizar
             </div>
         </div>
 
@@ -172,10 +211,10 @@
         
         <!-- Controls -->
         <div class="position-absolute bottom-0 end-0 p-3 d-flex gap-2">
-            <button class="btn btn-dark btn-sm border border-secondary" onclick="network.fit({animation:true})">
+            <button class="btn btn-dark btn-sm border border-secondary" onclick="network.fit({animation:true})" title="Centrar">
                 <i class="fa-solid fa-compress"></i>
             </button>
-            <button class="btn btn-dark btn-sm border border-secondary" onclick="reloadGraph()">
+            <button class="btn btn-dark btn-sm border border-secondary" onclick="reloadGraph()" title="Recargar">
                 <i class="fa-solid fa-rotate"></i>
             </button>
         </div>
@@ -196,7 +235,7 @@
             <div class="tab-pane fade show active h-100 d-flex flex-column" id="tab-chat">
                 <div id="chatArea" class="chat-history">
                     <div class="message-card message-ai">
-                        <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2 mb-2 border-bottom pb-2 border-light">
                             <i class="fa-solid fa-robot text-primary"></i>
                             <span class="fw-bold text-xs text-uppercase tracking-wide text-muted">Sistema</span>
                         </div>
@@ -208,25 +247,26 @@
                 
                 <div class="p-3 bg-white border-top">
                     <div class="position-relative">
-                        <textarea id="userPrompt" class="form-control bg-light border-0 ps-3 pe-5 py-3 shadow-inner" 
+                        <textarea id="userPrompt" class="form-control ps-3 pe-5 py-3" 
                             rows="2" placeholder="Pregunta algo complejo..." style="resize: none; border-radius: 12px;"
                             onkeypress="handleEnter(event)"></textarea>
-                        <button class="btn btn-primary position-absolute bottom-0 end-0 m-2 rounded-circle" 
+                        <button class="btn btn-primary position-absolute bottom-0 end-0 m-2 rounded-circle shadow-sm" 
                             style="width: 36px; height: 36px;" onclick="sendChat()">
                             <i class="fa-solid fa-paper-plane fa-sm"></i>
                         </button>
                     </div>
+                    <div class="text-xs text-muted text-center mt-2 opacity-50">Shift + Enter para nueva línea</div>
                 </div>
             </div>
 
             <!-- 2. INGEST TAB -->
             <div class="tab-pane fade p-4 overflow-auto" id="tab-ingest">
-                <h6 class="fw-bold text-dark mb-3">Nuevo Conocimiento</h6>
+                <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-database me-2"></i>Nuevo Conocimiento</h6>
                 
-                <div class="card border-0 bg-light mb-3">
+                <div class="card border-0 bg-light mb-3 shadow-sm">
                     <div class="card-body">
                         <label class="text-xs fw-bold text-muted mb-2">TEXTO RAW / MARKDOWN</label>
-                        <textarea id="ingestContent" class="form-control mb-3 text-sm" rows="5"></textarea>
+                        <textarea id="ingestContent" class="form-control mb-3 text-sm border-0 shadow-inner" rows="5"></textarea>
                         
                         <label class="text-xs fw-bold text-muted mb-2">O SUBIR ARCHIVO</label>
                         <input type="file" id="ingestFile" class="form-control form-control-sm mb-3">
@@ -241,39 +281,39 @@
                     <div class="progress mb-2" style="height: 4px;">
                         <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: 100%"></div>
                     </div>
-                    <div id="progressLog" class="font-mono text-xs text-muted" style="max-height: 100px; overflow-y: auto;"></div>
+                    <div id="progressLog" class="font-mono text-xs text-muted p-2 bg-white border rounded" style="max-height: 120px; overflow-y: auto;"></div>
                 </div>
 
                 <hr class="my-4">
                 
-                <h6 class="fw-bold text-dark mb-3">Motor de Inferencia</h6>
+                <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-brain me-2"></i>Motor de Inferencia</h6>
                 <div class="p-3 bg-warning bg-opacity-10 rounded border border-warning border-opacity-25">
-                    <p class="text-xs text-dark mb-3">Ejecutar análisis lógico para encontrar relaciones transitivas.</p>
-                    <button onclick="runReasoning()" id="btnReasoning" class="btn btn-outline-dark w-100 btn-sm">
-                        <i class="fa-solid fa-wand-magic-sparkles me-2"></i>CONSOLIDAR
+                    <p class="text-xs text-dark mb-3">Analizar relaciones implícitas en el grafo (Transitividad, Sinonimia).</p>
+                    <button onclick="runReasoning()" id="btnReasoning" class="btn btn-outline-dark w-100 btn-sm bg-white">
+                        <i class="fa-solid fa-wand-magic-sparkles me-2"></i>CONSOLIDAR GRAFO
                     </button>
-                    <div id="reasoningResult" class="mt-2 text-xs fw-bold"></div>
+                    <div id="reasoningResult" class="mt-2 text-xs fw-bold text-center"></div>
                 </div>
             </div>
 
             <!-- 3. DETAILS TAB -->
             <div class="tab-pane fade p-4" id="tab-details">
                 <div id="details-placeholder" class="text-center text-muted mt-5">
-                    <i class="fa-regular fa-object-ungroup fs-1 mb-3 opacity-50"></i>
-                    <p class="text-sm">Selecciona un nodo o una cita para ver detalles profundos.</p>
+                    <i class="fa-solid fa-circle-nodes fs-1 mb-3 opacity-25"></i>
+                    <p class="text-sm">Selecciona un nodo o una cita [1] para ver el análisis profundo.</p>
                 </div>
-                <div id="details-content" class="d-none">
+                <div id="details-content" class="d-none animate__animated animate__fadeIn">
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <span class="badge bg-primary rounded-pill" id="detail-type">ENTITY</span>
-                        <h5 class="fw-bold m-0" id="detail-title">Title</h5>
+                        <span class="badge bg-primary rounded-pill shadow-sm" id="detail-type">ENTITY</span>
+                        <h5 class="fw-bold m-0 text-break" id="detail-title">Title</h5>
                     </div>
-                    <div class="card bg-light border-0 p-3 mb-3">
-                        <div class="text-xs text-uppercase text-muted fw-bold mb-1">Contexto Original</div>
-                        <p class="text-sm text-dark m-0" id="detail-text" style="white-space: pre-wrap;">...</p>
+                    <div class="card bg-white border shadow-sm p-3 mb-3">
+                        <div class="text-xs text-uppercase text-muted fw-bold mb-2 pb-1 border-bottom">Contexto / Fragmento</div>
+                        <p class="text-sm text-dark m-0 font-mono text-xs" id="detail-text" style="white-space: pre-wrap;">...</p>
                     </div>
                     <div class="mb-3">
                         <div class="text-xs text-uppercase text-muted fw-bold mb-2">Conexiones Directas</div>
-                        <ul class="list-group list-group-flush bg-transparent" id="detail-connections">
+                        <ul class="list-group list-group-flush" id="detail-connections">
                         </ul>
                     </div>
                 </div>
@@ -295,10 +335,36 @@
         bg: '#0f172a'
     };
 
-    let network, allNodesData, allEdgesData;
-    let currentSources = []; // Almacena las fuentes de la última respuesta del chat
+    let network, allNodesData, allEdgesData, originalNodes;
+    let currentSources = []; 
 
-    document.addEventListener('DOMContentLoaded', () => { loadGraph(); });
+    // Inicio
+    document.addEventListener('DOMContentLoaded', () => { 
+        loadGraph(); 
+        setupTabListeners(); // Corrección del bug de pestañas
+    });
+
+    // --- 0. CORRECCIÓN DE PESTAÑAS ---
+    function setupTabListeners() {
+        const triggerTabList = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        triggerTabList.forEach(triggerEl => {
+            triggerEl.addEventListener('shown.bs.tab', event => {
+                const targetId = event.target.getAttribute('data-bs-target');
+                // Si vamos a chat, enfocar
+                if (targetId === '#tab-chat') {
+                    setTimeout(() => document.getElementById('userPrompt').focus(), 100);
+                }
+                // Si vamos a detalles sin selección, resetear
+                if (targetId === '#tab-details') {
+                    const sel = network ? network.getSelectedNodes() : [];
+                    if(sel.length === 0) {
+                        document.getElementById('details-placeholder').classList.remove('d-none');
+                        document.getElementById('details-content').classList.add('d-none');
+                    }
+                }
+            });
+        });
+    }
 
     // --- 1. MOTOR GRÁFICO (VIS.JS) ---
     async function loadGraph() {
@@ -306,10 +372,10 @@
             const res = await fetch('/api/graph');
             const data = await res.json();
             
-            // Transformar para Vis
             const nodes = data.nodes.map(n => ({
                 id: n.id,
-                label: n.label,
+                label: n.label.length > 20 ? n.label.substring(0, 18) + '..' : n.label,
+                title: n.label, // Tooltip completo
                 group: n.group,
                 color: { 
                     background: n.group === 'Concept' ? COLORS.concept : COLORS.entity, 
@@ -318,73 +384,83 @@
                 },
                 font: { color: '#cbd5e1', face: 'Outfit', size: 14, strokeWidth: 3, strokeColor: '#0f172a' },
                 shape: 'dot',
-                size: 20,
-                shadow: true
+                size: n.group === 'Concept' ? 25 : 15,
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10, x: 5, y: 5 }
             }));
 
             const edges = data.edges.map(e => ({
                 from: e.from, to: e.to, label: e.label,
                 color: { color: e.label.includes('INFERRED') ? COLORS.inference : 'rgba(148, 163, 184, 0.2)', opacity: 0.5 },
                 dashes: e.label.includes('INFERRED'),
-                arrows: 'to',
-                font: { color: '#64748b', size: 10, align: 'middle', strokeWidth: 0, background: 'none' }
+                arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                font: { color: '#94a3b8', size: 9, align: 'middle', strokeWidth: 0, background: 'none' }
             }));
+
+            // Guardar para filtros
+            originalNodes = new vis.DataSet(nodes);
+            allNodesData = new vis.DataSet(nodes);
+            allEdgesData = new vis.DataSet(edges);
 
             const container = document.getElementById('network-container');
             const options = {
                 nodes: { borderWidth: 2 },
                 physics: {
-                    forceAtlas2Based: { gravitationalConstant: -60, springLength: 150, damping: 0.9 },
+                    forceAtlas2Based: { gravitationalConstant: -80, springLength: 120, damping: 0.95 },
                     solver: 'forceAtlas2Based',
-                    stabilization: { iterations: 200 }
+                    stabilization: { iterations: 150 }
                 },
-                interaction: { hover: true, tooltipDelay: 200 }
+                interaction: { hover: true, tooltipDelay: 200, zoomView: true }
             };
 
-            network = new vis.Network(container, { nodes, edges }, options);
+            network = new vis.Network(container, { nodes: allNodesData, edges: allEdgesData }, options);
             
-            // Guardar referencia para filtrado
-            allNodesData = new vis.DataSet(nodes);
-            allEdgesData = new vis.DataSet(edges);
-            
-            // Evento click nodo
             network.on("click", params => {
                 if (params.nodes.length > 0) showNodeDetails(params.nodes[0]);
             });
+            
+            // Aplicar filtros iniciales
+            updateFilters();
 
         } catch(e) { console.error("Graph Error", e); }
     }
 
+    function updateFilters() {
+        if(!originalNodes) return;
+        const showConcepts = document.getElementById('filterConcepts').checked;
+        const showEntities = document.getElementById('filterEntities').checked;
+
+        const filtered = originalNodes.get({
+            filter: function (item) {
+                if (item.group === 'Concept' && !showConcepts) return false;
+                if (item.group !== 'Concept' && !showEntities) return false;
+                return true;
+            }
+        });
+        
+        // Actualizar sin redibujar todo bruscamente
+        network.setData({ nodes: filtered, edges: allEdgesData });
+    }
+
     // --- 2. INTERACCIÓN CHAT <-> GRAFO ---
     
-    // Función llamada cuando el mouse entra en una cita [1]
     function highlightSource(index) {
         const source = currentSources.find(s => s.index === index);
         if(!source) return;
 
         const conceptIds = source.concepts;
-        
-        // Oscurecer todo
         const updateArray = [];
+        
+        // Efecto de foco: atenuar los demás
         allNodesData.forEach(node => {
             if(conceptIds.includes(node.id)) {
-                // Nodo relevante: Resaltar
-                updateArray.push({ id: node.id, opacity: 1, size: 30, color: { background: '#ef4444', border: '#fff' } });
+                updateArray.push({ id: node.id, opacity: 1, size: 35, color: { background: '#ef4444', border: '#fff' } });
             } else {
-                // Nodo irrelevante: Difuminar
                 updateArray.push({ id: node.id, opacity: 0.1, color: { background: '#334155' } });
             }
         });
-        
-        // Actualizar grafo
         network.body.data.nodes.update(updateArray);
-
-        // Zoom si hay nodos
-        if(conceptIds.length > 0) {
-            network.fit({ nodes: conceptIds, animation: { duration: 500 } });
-        }
         
-        // Mostrar contenido en panel de detalles
+        if(conceptIds.length > 0) network.fit({ nodes: conceptIds, animation: { duration: 500 } });
         showSourceDetails(source);
     }
 
@@ -394,7 +470,7 @@
             updateArray.push({ 
                 id: node.id, 
                 opacity: 1, 
-                size: 20, 
+                size: node.group === 'Concept' ? 25 : 15, 
                 color: { background: node.group === 'Concept' ? COLORS.concept : COLORS.entity, border: 'rgba(255,255,255,0.3)' } 
             });
         });
@@ -402,7 +478,6 @@
     }
 
     function showSourceDetails(source) {
-        // Switch tab
         const tab = new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-details"]'));
         tab.show();
 
@@ -411,12 +486,12 @@
         
         document.getElementById('detail-type').innerText = "FUENTE DOCUMENTAL";
         document.getElementById('detail-type').className = "badge bg-success rounded-pill";
-        document.getElementById('detail-title').innerText = "Fragmento #" + source.index;
-        document.getElementById('detail-text').innerText = source.short_content; // Aquí podrías poner el content completo si lo guardas
+        document.getElementById('detail-title').innerText = "Referencia #" + source.index;
+        document.getElementById('detail-text').innerText = source.short_content;
         
         const ul = document.getElementById('detail-connections');
         ul.innerHTML = source.concepts.map(c => 
-            `<li class="list-group-item px-0 py-1"><i class="fa-solid fa-link text-xs me-2 opacity-50"></i>${c}</li>`
+            `<li class="list-group-item px-0 py-1 border-0"><i class="fa-solid fa-link text-xs me-2 opacity-50"></i>${c}</li>`
         ).join('');
     }
 
@@ -424,7 +499,6 @@
         const node = allNodesData.get(nodeId);
         if(!node) return;
 
-        // Switch tab
         const tab = new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-details"]'));
         tab.show();
         
@@ -433,23 +507,27 @@
         
         document.getElementById('detail-type').innerText = node.group.toUpperCase();
         document.getElementById('detail-type').className = node.group === 'Concept' ? "badge bg-warning text-dark rounded-pill" : "badge bg-primary rounded-pill";
-        document.getElementById('detail-title').innerText = node.label;
-        document.getElementById('detail-text').innerText = "Entidad extraída del grafo de conocimiento.";
+        document.getElementById('detail-title').innerText = node.title || node.label;
+        document.getElementById('detail-text').innerText = "Entidad nodo en el Grafo de Conocimiento.";
         
-        // Buscar conexiones
         const connectedEdges = allEdgesData.get({ filter: e => e.from === nodeId || e.to === nodeId });
         const ul = document.getElementById('detail-connections');
         ul.innerHTML = connectedEdges.map(e => {
             const neighbor = e.from === nodeId ? e.to : e.from;
-            return `<li class="list-group-item px-0 py-1 d-flex justify-content-between">
-                        <span><i class="fa-solid fa-circle-nodes text-xs me-2"></i>${neighbor}</span>
-                        <span class="text-xs text-muted border px-1 rounded">${e.label}</span>
+            return `<li class="list-group-item px-0 py-1 d-flex justify-content-between border-bottom border-light">
+                        <span><i class="fa-solid fa-circle-nodes text-xs me-2 text-primary"></i>${neighbor}</span>
+                        <span class="text-xs text-muted bg-light px-2 py-0 rounded border">${e.label}</span>
                     </li>`;
         }).join('');
     }
 
     // --- 3. CHAT LOGIC ---
-    function handleEnter(e) { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+    function handleEnter(e) { 
+        if(e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            sendChat(); 
+        } 
+    }
     
     async function sendChat() {
         const input = document.getElementById('userPrompt');
@@ -459,11 +537,15 @@
         appendMsg('user', text);
         input.value = '';
         
-        // Loading state
         const loadingId = 'loading-' + Date.now();
-        document.getElementById('chatArea').insertAdjacentHTML('beforeend', 
-            `<div id="${loadingId}" class="message-card message-ai text-muted"><i class="fa-solid fa-circle-notch fa-spin me-2"></i>Analizando vectores y grafo...</div>`);
+        const area = document.getElementById('chatArea');
         
+        area.insertAdjacentHTML('beforeend', 
+            `<div id="${loadingId}" class="message-card message-ai text-muted border-0 shadow-none">
+                <i class="fa-solid fa-circle-notch fa-spin me-2"></i>Consultando red neuronal...
+             </div>`);
+        area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+
         try {
             const res = await fetch('/api/chat', { 
                 method: 'POST', 
@@ -473,67 +555,72 @@
             const data = await res.json();
             document.getElementById(loadingId).remove();
             
-            // Guardar fuentes para interactividad
             currentSources = data.sources || [];
             
-            // Formatear respuesta (Markdown simple + Citas)
-            let formatted = data.response
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Negrita
-                .replace(/\n/g, '<br>')
-                // Reemplazar [1], [2] con badges interactivos
-                .replace(/\[(\d+)\]/g, (match, p1) => {
-                    const idx = parseInt(p1);
-                    return `<span class="citation-badge" 
-                                onmouseenter="highlightSource(${idx})" 
-                                onmouseleave="resetGraphHighlight()"
-                                onclick="highlightSource(${idx})">${idx}</span>`;
-                });
+            // Renderizado Markdown y Badges
+            // 1. Reemplazar citas para protegerlas del parser de Markdown si fuera necesario, 
+            //    o parsear Markdown primero y luego inyectar HTML de citas.
+            //    Estrategia: Parsear MD -> Sanitize -> Inject Badges.
+            
+            let html = DOMPurify.sanitize(marked.parse(data.response));
+            
+            // Inyectar badges interactivos
+            html = html.replace(/\[(\d+)\]/g, (match, p1) => {
+                const idx = parseInt(p1);
+                return `<span class="citation-badge" 
+                            onmouseenter="highlightSource(${idx})" 
+                            onmouseleave="resetGraphHighlight()"
+                            onclick="highlightSource(${idx})">${idx}</span>`;
+            });
 
-            appendMsg('ai', formatted);
+            appendMsg('ai', html, true); // true indica que ya es HTML procesado
             
         } catch(e) {
             document.getElementById(loadingId).remove();
-            appendMsg('ai', `<span class="text-danger">Error de comunicación con el backend.</span>`);
+            appendMsg('ai', `<span class="text-danger">Error de comunicación.</span>`, true);
         }
     }
 
-    function appendMsg(role, html) {
+    function appendMsg(role, content, isHtml = false) {
         const area = document.getElementById('chatArea');
         const div = document.createElement('div');
         div.className = `message-card ${role === 'user' ? 'message-user' : 'message-ai'}`;
         
         if(role === 'ai') {
-            div.innerHTML = `<div class="d-flex align-items-center gap-2 mb-2">
-                                <i class="fa-solid fa-robot text-primary"></i>
-                                <span class="fw-bold text-xs text-uppercase tracking-wide text-muted">LaMuralla</span>
-                             </div>
-                             <div class="md-content text-sm">${html}</div>`;
+            div.innerHTML = `
+                <div class="d-flex align-items-center gap-2 mb-2 border-bottom pb-2 border-light">
+                    <div class="bg-primary bg-opacity-10 p-1 rounded">
+                        <i class="fa-solid fa-brain text-primary"></i>
+                    </div>
+                    <span class="fw-bold text-xs text-uppercase tracking-wide text-muted">LaMuralla AI</span>
+                    <span class="ms-auto text-xs text-muted">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div class="md-content text-sm">${isHtml ? content : marked.parse(content)}</div>`;
         } else {
-            div.innerHTML = html;
+            div.innerText = content; // Usuario en texto plano por seguridad (o usar textContent)
         }
         
         area.appendChild(div);
-        area.scrollTop = area.scrollHeight;
+        area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
     }
 
-    // --- 4. UTILS ---
+    // --- 4. UTILS (Ingesta & Reasoning) ---
     async function startIngestion() {
-        // (Mismo código de ingesta que en tu versión anterior, 
-        //  solo asegurándose de usar los nuevos IDs del layout)
         const btn = document.getElementById('btnIngest');
         const logDiv = document.getElementById('progressLog');
         const progressArea = document.getElementById('progressArea');
+        const textVal = document.getElementById('ingestContent').value;
+        const fileInput = document.getElementById('ingestFile');
         
-        // ... lógica de fetch /api/ingest ...
-        // Simplificado para brevedad:
-        const val = document.getElementById('ingestContent').value;
-        if(!val) return alert("Escribe algo.");
+        if(!textVal && fileInput.files.length === 0) return alert("Ingresa texto o selecciona un archivo.");
         
         const formData = new FormData();
-        formData.append('content', val);
+        if(textVal) formData.append('content', textVal);
+        if(fileInput.files.length > 0) formData.append('file', fileInput.files[0]);
         
         btn.disabled = true;
         progressArea.classList.remove('d-none');
+        logDiv.innerHTML = '<div class="text-primary">🚀 Iniciando pipeline...</div>';
         
         try {
              const response = await fetch('/api/ingest', { method: 'POST', body: formData });
@@ -542,11 +629,17 @@
              while(true) {
                 const { done, value } = await reader.read();
                 if(done) break;
-                logDiv.innerHTML += `> ${decoder.decode(value)}<br>`;
+                const chunk = decoder.decode(value);
+                // Simple parsing de líneas
+                chunk.split('\n').forEach(line => {
+                    if(line.trim()) logDiv.innerHTML += `<div>${line}</div>`;
+                });
                 logDiv.scrollTop = logDiv.scrollHeight;
              }
              btn.disabled = false;
              reloadGraph();
+             document.getElementById('ingestContent').value = '';
+             fileInput.value = '';
         } catch(e) { console.error(e); btn.disabled = false; }
     }
 
@@ -556,15 +649,15 @@
         const btn = document.getElementById('btnReasoning');
         const resDiv = document.getElementById('reasoningResult');
         btn.disabled = true;
-        resDiv.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        resDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-dark"></div> Pensando...';
         
         try {
             const res = await fetch('/api/reasoning/run', { method: 'POST' });
             const data = await res.json();
-            resDiv.innerHTML = `<span class="text-success">¡${data.length} inferencias!</span>`;
+            resDiv.innerHTML = `<span class="text-success fw-bold">¡${data.length} inferencias nuevas!</span>`;
             if(data.length > 0) reloadGraph();
         } catch(e) {
-            resDiv.innerHTML = 'Error.';
+            resDiv.innerHTML = '<span class="text-danger">Error en inferencia.</span>';
         } finally { btn.disabled = false; }
     }
 </script>

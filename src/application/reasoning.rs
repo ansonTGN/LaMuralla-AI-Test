@@ -17,36 +17,50 @@ impl ReasoningService {
     }
 
     pub async fn infer_new_knowledge(&self) -> Result<Vec<InferredRelation>, AppError> {
-        // 1. Obtener contexto (limitado para no desbordar tokens)
-        let graph_context = self.repo.get_graph_context_for_reasoning(300).await?;
+        // 1. Obtener contexto más amplio
+        let graph_context = self.repo.get_graph_context_for_reasoning(500).await?;
 
-        // 2. Prompt
+        // 2. Prompt Avanzado de Ontología
         let prompt = format!(
-            r#"Analiza las siguientes relaciones existentes en un Grafo de Conocimiento:
+            r#"Actúa como un Ingeniero de Ontologías Senior y experto en Lógica Difusa.
+            Analiza las siguientes triplas (Entidad -> Relación -> Entidad) extraídas de un grafo:
             
             {}
             
-            TU TAREA:
-            1. Identifica relaciones IMPLÍCITAS lógicas que falten. (Ej: Si A->B y B->C, ¿A->C?)
-            2. Identifica entidades que sean SINÓNIMAS y deban unirse (Relación: SAME_AS).
-            3. Genera nuevas conexiones conceptuales basadas en tu conocimiento del mundo real.
+            TU OBJETIVO: Descubrir conocimiento implícito ("Eslabones Perdidos").
             
-            Responde ESTRICTAMENTE en JSON con este formato:
+            REGLAS DE INFERENCIA:
+            1. Transitividad: Si A -> B y B -> C, evalúa si lógicamente A -> C.
+            2. Resolución de Entidades: Si "Dr. Juan" y "Juan Perez" parecen ser la misma persona por contexto, sugiere relación "SAME_AS".
+            3. Causalidad: Si A "CAUSA" B, y B "IMPLICA" C, entonces A "LLEVA_A" C.
+            
+            FORMATO DE RESPUESTA (JSON estricto):
             {{
                 "new_relations": [
-                    {{ "source": "NombreExactoOrigen", "target": "NombreExactoDestino", "relation": "TIPO_RELACION", "reasoning": "Breve explicacion" }}
+                    {{ 
+                        "source": "NombreExactoOrigen", 
+                        "target": "NombreExactoDestino", 
+                        "relation": "TIPO_RELACION_INFERIDA", 
+                        "reasoning": "(Confianza: Alta/Media) Explicación breve de por qué dedujiste esto." 
+                    }}
                 ]
             }}
-            No inventes entidades nuevas, usa solo las existentes en el texto provisto. Si no hay nada obvio, devuelve array vacío.
+            
+            IMPORTANTE:
+            - Solo genera relaciones con una confianza alta.
+            - No inventes entidades que no estén en la lista.
+            - Si no encuentras nada seguro, devuelve un array vacío.
             "#, 
             graph_context
         );
 
         // 3. Consultar IA
         let ai_guard = self.ai.read().await;
+        
+        // Usamos generate_inference que ya maneja la limpieza de JSON
         let response_json = ai_guard.generate_inference(&prompt).await?;
         
-        // 4. Guardar
+        // 4. Guardar en Base de Datos
         if !response_json.new_relations.is_empty() {
             self.repo.save_inferred_relations(response_json.new_relations.clone()).await?;
         }

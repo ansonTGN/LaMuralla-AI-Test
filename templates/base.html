@@ -15,6 +15,10 @@
     <!-- Vis.js -->
     <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" />
 
+    <!-- Markdown & Security -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
     <style>
         :root {
             /* Palette Professional Slate */
@@ -34,7 +38,6 @@
             --color-edge: #cbd5e1;
             
             --glass-bg: rgba(255, 255, 255, 0.95);
-            --glass-border: 1px solid rgba(226, 232, 240, 0.8);
             --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
@@ -48,12 +51,11 @@
             overflow: hidden; 
         }
 
-        /* Utilidades */
+        /* --- UI Improvements --- */
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .fw-medium { font-weight: 500; }
         .text-xs { font-size: 0.75rem; }
         
-        /* Botones Profesionales */
         .btn-primary {
             background-color: var(--primary);
             border: none;
@@ -65,7 +67,13 @@
             transform: translateY(-1px);
         }
 
-        /* Loading Overlay Premium */
+        /* Scrollbar Moderno */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
+
+        /* Loading Overlay */
         #loading { 
             display: none; 
             position: fixed; 
